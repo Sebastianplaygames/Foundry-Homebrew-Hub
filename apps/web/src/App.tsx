@@ -818,7 +818,7 @@ function App() {
           <div className="character-layout">
             <aside className="character-sidebar">
               <div className="portrait-box">
-                <span></span>
+                <span>?</span>
               </div>
 
               <label>
