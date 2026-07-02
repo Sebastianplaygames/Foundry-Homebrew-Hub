@@ -1,0 +1,12 @@
+{
+  "name": "foundry-homebrew-hub",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
