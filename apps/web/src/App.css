@@ -1961,3 +1961,53 @@ h3 {
     grid-template-columns: repeat(6, minmax(74px, 1fr));
   }
 }
+
+/* ----------------------------------------- */
+/* Compact Foundry Trait List                */
+/* ----------------------------------------- */
+
+.foundry-character-sheet--window .gear-card {
+  display: none;
+}
+
+.foundry-traits-list {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  padding: 0.65rem;
+  border: 1px solid rgba(67, 72, 87, 0.95);
+  border-radius: 0.65rem;
+  background: rgba(13, 11, 11, 0.22);
+}
+
+.foundry-trait-row {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.foundry-trait-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #aaa;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.foundry-trait-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.foundry-trait-pills button {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgba(159, 146, 117, 0.35);
+  border-radius: 0.25rem;
+  background: rgba(36, 39, 49, 0.9);
+  color: #cfd2da;
+  font-size: 0.75rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}

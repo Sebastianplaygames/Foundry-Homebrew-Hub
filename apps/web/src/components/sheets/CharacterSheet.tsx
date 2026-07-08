@@ -244,102 +244,142 @@ export function CharacterSheet({
             ))}
           </nav>
 
-            {characterTab === "details" && (
+          {characterTab === "details" && (
             <div className="foundry-dnd-layout">
-                <section className="foundry-card skills-card foundry-skills-panel">
+              <section className="foundry-card skills-card foundry-skills-panel">
                 <h2>Skills</h2>
 
                 {skills.map(([ability, skill]) => (
-                    <div className="foundry-row skill" key={skill}>
+                  <div className="foundry-row skill" key={skill}>
                     <span className="prof-circle" />
                     <b>{ability.toUpperCase()}</b>
                     <p>{skill}</p>
                     <strong>{abilityMod(characterAbilities[ability])}</strong>
-                    </div>
+                  </div>
                 ))}
-                </section>
+              </section>
 
-                <div className="foundry-details-panel">
+              <div className="foundry-details-panel">
                 <section className="foundry-card saves-card foundry-saves-panel">
-                    <h2>Saving Throws</h2>
+                  <h2>Saving Throws</h2>
 
-                    <div className="saving-throws-grid">
+                  <div className="saving-throws-grid">
                     {([
-                        ["str", "Strength"],
-                        ["dex", "Dexterity"],
-                        ["con", "Constitution"],
-                        ["int", "Intelligence"],
-                        ["wis", "Wisdom"],
-                        ["cha", "Charisma"]
+                      ["str", "Strength"],
+                      ["dex", "Dexterity"],
+                      ["con", "Constitution"],
+                      ["int", "Intelligence"],
+                      ["wis", "Wisdom"],
+                      ["cha", "Charisma"]
                     ] as [AbilityKey, string][]).map(([ability, label]) => (
-                        <div className="foundry-row save" key={ability}>
+                      <div className="foundry-row save" key={ability}>
                         <span className="prof-circle" />
                         <p>{label}</p>
                         <strong>{abilityMod(characterAbilities[ability])}</strong>
-                        </div>
+                      </div>
                     ))}
-                    </div>
+                  </div>
                 </section>
 
                 <section className="foundry-card foundry-identity-panel">
-                    <label className="foundry-class-pill">
+                  <label className="foundry-class-pill">
                     <span>Class</span>
                     <input
-                        value={characterClassName}
-                        onChange={(event) => setCharacterClassName(event.target.value)}
-                        placeholder="Warlock"
+                      value={characterClassName}
+                      onChange={(event) => setCharacterClassName(event.target.value)}
+                      placeholder="Warlock"
                     />
                     <strong>{characterLevel}</strong>
-                    </label>
+                  </label>
 
-                    <label className="trait-banner">
+                  <label className="trait-banner">
                     <span className="trait-icon">👥</span>
                     <input
-                        value={characterSpecies}
-                        onChange={(event) => setCharacterSpecies(event.target.value)}
-                        placeholder="Humanoid / Species"
+                      value={characterSpecies}
+                      onChange={(event) => setCharacterSpecies(event.target.value)}
+                      placeholder="Humanoid / Species"
                     />
-                    </label>
+                  </label>
 
-                    <label className="trait-drop-input">
+                  <label className="trait-drop-input">
                     Species
                     <input
-                        value={characterSpecies}
-                        onChange={(event) => setCharacterSpecies(event.target.value)}
-                        placeholder="Add Species"
+                      value={characterSpecies}
+                      onChange={(event) => setCharacterSpecies(event.target.value)}
+                      placeholder="Add Species"
                     />
-                    </label>
+                  </label>
 
-                    <label className="trait-drop-input">
+                  <label className="trait-drop-input">
                     Background
                     <input
-                        value={characterBackground}
-                        onChange={(event) => setCharacterBackground(event.target.value)}
-                        placeholder="Add Background"
+                      value={characterBackground}
+                      onChange={(event) => setCharacterBackground(event.target.value)}
+                      placeholder="Add Background"
                     />
-                    </label>
+                  </label>
 
-                    <label className="trait-drop-input compact">
+                  <label className="trait-drop-input compact">
                     Speed
                     <input
-                        type="number"
-                        min={0}
-                        value={characterSpeed}
-                        onChange={(event) => setCharacterSpeed(Number(event.target.value))}
+                      type="number"
+                      min={0}
+                      value={characterSpeed}
+                      onChange={(event) => setCharacterSpeed(Number(event.target.value))}
                     />
-                    </label>
+                  </label>
                 </section>
 
-                <section className="foundry-card gear-card">
-                    <h3>Armor</h3>
-                    <button type="button">Light</button>
+                {(() => {
+                  const armorProficiencies: string[] = [];
+                  const weaponProficiencies: string[] = [];
+                  const languages: string[] = [];
+                  const senses: string[] = [];
+                  const resistances: string[] = [];
+                  const damageImmunities: string[] = [];
+                  const conditionImmunities: string[] = [];
+                  const vulnerabilities: string[] = [];
 
-                    <h3>Weapons</h3>
-                    <button type="button">Simple</button>
-                </section>
-                </div>
+                  const traitGroups = [
+                    ["Senses", senses],
+                    ["Resistances", resistances],
+                    ["Damage Immunities", damageImmunities],
+                    ["Condition Immunities", conditionImmunities],
+                    ["Vulnerabilities", vulnerabilities],
+                    ["Armor", armorProficiencies],
+                    ["Weapons", weaponProficiencies],
+                    ["Languages", languages]
+                  ] as const;
+
+                  const visibleTraitGroups = traitGroups.filter(([, values]) => values.length > 0);
+
+                  if (visibleTraitGroups.length === 0) {
+                    return null;
+                  }
+
+                  return (
+                    <section className="foundry-traits-list">
+                      {visibleTraitGroups.map(([label, values]) => (
+                        <div className="foundry-trait-row" key={label}>
+                          <div className="foundry-trait-header">
+                            <span>{label}</span>
+                          </div>
+
+                          <div className="foundry-trait-pills">
+                            {values.map((value) => (
+                              <button type="button" key={value}>
+                                {value}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </section>
+                  );
+                })()}
+              </div>
             </div>
-            )}
+          )}
 
           {characterTab === "inventory" && (
             <section className="foundry-card tab-card">
