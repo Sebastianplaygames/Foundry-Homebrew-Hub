@@ -2011,3 +2011,108 @@ h3 {
   font-weight: 950;
   text-transform: uppercase;
 }
+
+/* ----------------------------------------- */
+/* Clickable Proficiency Circles              */
+/* ----------------------------------------- */
+
+.foundry-row .prof-circle {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  min-width: 0.75rem;
+  min-height: 0.75rem;
+  padding: 0;
+  border: 1px solid #9f9275;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.foundry-row .prof-circle:hover {
+  background: rgba(230, 181, 109, 0.25);
+}
+
+.foundry-row .prof-circle.active {
+  background: #e6b56d;
+  box-shadow: 0 0 0 2px rgba(230, 181, 109, 0.18);
+}
+
+/* ----------------------------------------- */
+/* Trait / Proficiency Editor                 */
+/* ----------------------------------------- */
+
+.traits-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 0.8rem;
+  min-height: 0;
+  overflow: auto;
+}
+
+.trait-picker-card {
+  align-content: start;
+}
+
+.trait-picker-card select {
+  min-height: unset;
+  padding: 0.55rem 0.65rem;
+}
+
+.trait-picker-card .muted-text {
+  margin: 0;
+  color: #888;
+  font-size: 0.82rem;
+}
+
+.foundry-traits-list {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  padding: 0.65rem;
+  border: 1px solid rgba(67, 72, 87, 0.95);
+  border-radius: 0.65rem;
+  background: rgba(13, 11, 11, 0.22);
+}
+
+.foundry-trait-row {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.foundry-trait-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #aaa;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.foundry-trait-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.foundry-trait-pills button {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgba(159, 146, 117, 0.35);
+  border-radius: 0.25rem;
+  background: rgba(36, 39, 49, 0.9);
+  color: #cfd2da;
+  font-size: 0.75rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.foundry-trait-pills.editable button:hover {
+  background: #5b1f1f;
+}
+
+@container (max-width: 900px) {
+  .traits-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}

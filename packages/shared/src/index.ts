@@ -106,17 +106,28 @@ export const HomebrewCharacterSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
   level: z.number().min(1).max(20),
-
   className: z.string().default(""),
   species: z.string().default(""),
   background: z.string().default(""),
-
   abilities: AbilityScoresSchema,
-
   hpMax: z.number().min(0).default(0),
   speed: z.number().min(0).default(30),
+  img: z.string().default("icons/svg/mystery-man.svg"),
 
-  img: z.string().default("icons/svg/mystery-man.svg")
+  proficiencies: z
+    .object({
+      saves: z.record(z.string(), z.boolean()).default({}),
+      skills: z.record(z.string(), z.boolean()).default({}),
+      armor: z.array(z.string()).default([]),
+      weapons: z.array(z.string()).default([]),
+      languages: z.array(z.string()).default([]),
+      senses: z.array(z.string()).default([]),
+      resistances: z.array(z.string()).default([]),
+      damageImmunities: z.array(z.string()).default([]),
+      conditionImmunities: z.array(z.string()).default([]),
+      vulnerabilities: z.array(z.string()).default([])
+    })
+    .optional()
 });
 
 export type HomebrewCharacter = z.infer<typeof HomebrewCharacterSchema>;

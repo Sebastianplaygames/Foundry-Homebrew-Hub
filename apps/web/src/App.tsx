@@ -7,6 +7,21 @@ import "./App.css";
 
 type Page = "library" | "create" | "create-feature" | "create-character";
 
+type ExportableCharacter = HomebrewCharacter & {
+  proficiencies?: {
+    saves?: Record<string, boolean>;
+    skills?: Record<string, boolean>;
+    armor?: string[];
+    weapons?: string[];
+    languages?: string[];
+    senses?: string[];
+    resistances?: string[];
+    damageImmunities?: string[];
+    conditionImmunities?: string[];
+    vulnerabilities?: string[];
+  };
+};
+
 function App() {
   const [page, setPage] = useState<Page>("library");
 
@@ -281,20 +296,169 @@ function App() {
       .replace(/[^a-z0-9-]/g, "");
   }
 
-  function exportCharacterActor(character: HomebrewCharacter) {
+  function exportCharacterActor(character: ExportableCharacter) {
+    const proficiencies: Required<NonNullable<ExportableCharacter["proficiencies"]>> = {
+      saves: character.proficiencies?.saves ?? {},
+      skills: character.proficiencies?.skills ?? {},
+      armor: character.proficiencies?.armor ?? [],
+      weapons: character.proficiencies?.weapons ?? [],
+      languages: character.proficiencies?.languages ?? [],
+      senses: character.proficiencies?.senses ?? [],
+      resistances: character.proficiencies?.resistances ?? [],
+      damageImmunities: character.proficiencies?.damageImmunities ?? [],
+      conditionImmunities: character.proficiencies?.conditionImmunities ?? [],
+      vulnerabilities: character.proficiencies?.vulnerabilities ?? []
+    };
+
+    const armorCodeMap: Record<string, string> = {
+      "Light Armor": "lgt",
+      "Medium Armor": "med",
+      "Heavy Armor": "hvy",
+      Shields: "shl"
+    };
+
+    const weaponCodeMap: Record<string, string> = {
+      "Simple Weapons": "sim",
+      "Martial Weapons": "mar",
+      Clubs: "club",
+      Daggers: "dagger",
+      Greatclubs: "greatclub",
+      Handaxes: "handaxe",
+      Javelins: "javelin",
+      "Light Hammers": "lighthammer",
+      Maces: "mace",
+      Quarterstaffs: "quarterstaff",
+      Sickles: "sickle",
+      Spears: "spear",
+      "Light Crossbows": "lightcrossbow",
+      Darts: "dart",
+      Shortbows: "shortbow",
+      Slings: "sling",
+      Battleaxes: "battleaxe",
+      Flails: "flail",
+      Glaives: "glaive",
+      Greataxes: "greataxe",
+      Greatswords: "greatsword",
+      Halberds: "halberd",
+      Lances: "lance",
+      Longswords: "longsword",
+      Mauls: "maul",
+      Morningstars: "morningstar",
+      Pikes: "pike",
+      Rapiers: "rapier",
+      Scimitars: "scimitar",
+      Shortswords: "shortsword",
+      Tridents: "trident",
+      "War Picks": "warpick",
+      Warhammers: "warhammer",
+      Whips: "whip",
+      Blowguns: "blowgun",
+      "Hand Crossbows": "handcrossbow",
+      "Heavy Crossbows": "heavycrossbow",
+      Longbows: "longbow",
+      Nets: "net"
+    };
+
+    const languageCodeMap: Record<string, string> = {
+      Common: "common",
+      Dwarvish: "dwarvish",
+      Elvish: "elvish",
+      Giant: "giant",
+      Gnomish: "gnomish",
+      Goblin: "goblin",
+      Halfling: "halfling",
+      Orc: "orc",
+      Abyssal: "abyssal",
+      Celestial: "celestial",
+      Draconic: "draconic",
+      "Deep Speech": "deep",
+      Infernal: "infernal",
+      Primordial: "primordial",
+      Sylvan: "sylvan",
+      Undercommon: "undercommon"
+    };
+
+    const damageCodeMap: Record<string, string> = {
+      Acid: "acid",
+      Bludgeoning: "bludgeoning",
+      Cold: "cold",
+      Fire: "fire",
+      Force: "force",
+      Lightning: "lightning",
+      Necrotic: "necrotic",
+      Piercing: "piercing",
+      Poison: "poison",
+      Psychic: "psychic",
+      Radiant: "radiant",
+      Slashing: "slashing",
+      Thunder: "thunder"
+    };
+
+    const conditionCodeMap: Record<string, string> = {
+      Blinded: "blinded",
+      Charmed: "charmed",
+      Deafened: "deafened",
+      Exhaustion: "exhaustion",
+      Frightened: "frightened",
+      Grappled: "grappled",
+      Incapacitated: "incapacitated",
+      Invisible: "invisible",
+      Paralyzed: "paralyzed",
+      Petrified: "petrified",
+      Poisoned: "poisoned",
+      Prone: "prone",
+      Restrained: "restrained",
+      Stunned: "stunned",
+      Unconscious: "unconscious"
+    };
+
+    function mapValues(values: string[] | undefined, map: Record<string, string>) {
+      return (values ?? []).map((value) => map[value] ?? value);
+    }
+
+    function skillValue(skill: string) {
+      return proficiencies.skills?.[skill] ? 1 : 0;
+    }
+
+    function saveValue(ability: string) {
+      return proficiencies.saves?.[ability] ? 1 : 0;
+    }
+
     const actor = {
       name: character.name,
       type: "character",
       img: character.img,
       system: {
         abilities: {
-          str: { value: character.abilities.str, proficient: 0 },
-          dex: { value: character.abilities.dex, proficient: 0 },
-          con: { value: character.abilities.con, proficient: 0 },
-          int: { value: character.abilities.int, proficient: 0 },
-          wis: { value: character.abilities.wis, proficient: 0 },
-          cha: { value: character.abilities.cha, proficient: 0 }
+          str: { value: character.abilities.str, proficient: saveValue("str") },
+          dex: { value: character.abilities.dex, proficient: saveValue("dex") },
+          con: { value: character.abilities.con, proficient: saveValue("con") },
+          int: { value: character.abilities.int, proficient: saveValue("int") },
+          wis: { value: character.abilities.wis, proficient: saveValue("wis") },
+          cha: { value: character.abilities.cha, proficient: saveValue("cha") }
         },
+
+        skills: {
+          acr: { ability: "dex", value: skillValue("acr") },
+          ani: { ability: "wis", value: skillValue("ani") },
+          arc: { ability: "int", value: skillValue("arc") },
+          ath: { ability: "str", value: skillValue("ath") },
+          dec: { ability: "cha", value: skillValue("dec") },
+          his: { ability: "int", value: skillValue("his") },
+          ins: { ability: "wis", value: skillValue("ins") },
+          itm: { ability: "cha", value: skillValue("itm") },
+          inv: { ability: "int", value: skillValue("inv") },
+          med: { ability: "wis", value: skillValue("med") },
+          nat: { ability: "int", value: skillValue("nat") },
+          prc: { ability: "wis", value: skillValue("prc") },
+          prf: { ability: "cha", value: skillValue("prf") },
+          per: { ability: "cha", value: skillValue("per") },
+          rel: { ability: "int", value: skillValue("rel") },
+          slt: { ability: "dex", value: skillValue("slt") },
+          ste: { ability: "dex", value: skillValue("ste") },
+          sur: { ability: "wis", value: skillValue("sur") }
+        },
+
         attributes: {
           hp: {
             value: character.hpMax,
@@ -311,15 +475,26 @@ function App() {
             bonus: ""
           },
           movement: {
-            burrow: 0,
-            climb: 0,
-            fly: 0,
-            swim: 0,
-            walk: character.speed,
+            burrow: "",
+            climb: "",
+            fly: "",
+            swim: "",
+            walk: String(character.speed),
             units: "ft",
             hover: false
+          },
+          senses: {
+            ranges: {
+              blindsight: proficiencies.senses?.includes("Blindsight") ? 30 : null,
+              darkvision: proficiencies.senses?.includes("Darkvision") ? 60 : null,
+              tremorsense: proficiencies.senses?.includes("Tremorsense") ? 30 : null,
+              truesight: proficiencies.senses?.includes("Truesight") ? 30 : null
+            },
+            units: "ft",
+            special: ""
           }
         },
+
         details: {
           level: character.level,
           race: character.species,
@@ -329,7 +504,59 @@ function App() {
             value: 0
           }
         },
-        traits: {},
+
+        traits: {
+          size: "med",
+
+          di: {
+            value: mapValues(proficiencies.damageImmunities, damageCodeMap),
+            custom: "",
+            bypasses: []
+          },
+
+          dr: {
+            value: mapValues(proficiencies.resistances, damageCodeMap),
+            custom: "",
+            bypasses: []
+          },
+
+          dv: {
+            value: mapValues(proficiencies.vulnerabilities, damageCodeMap),
+            custom: "",
+            bypasses: []
+          },
+
+          dm: {
+            amount: {},
+            bypasses: []
+          },
+
+          ci: {
+            value: mapValues(proficiencies.conditionImmunities, conditionCodeMap),
+            custom: ""
+          },
+
+          languages: {
+            value: mapValues(proficiencies.languages, languageCodeMap),
+            custom: "",
+            communication: {}
+          },
+
+          weaponProf: {
+            value: mapValues(proficiencies.weapons, weaponCodeMap),
+            custom: "",
+            mastery: {
+              value: [],
+              bonus: []
+            }
+          },
+
+          armorProf: {
+            value: mapValues(proficiencies.armor, armorCodeMap),
+            custom: ""
+          }
+        },
+
         currency: {
           pp: 0,
           gp: 0,
@@ -338,6 +565,7 @@ function App() {
           cp: 0
         }
       },
+
       items: [],
       effects: [],
       flags: {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { AbilityKey, HomebrewCharacter } from "@foundry-homebrew-hub/shared";
 
 type CharacterTab =
@@ -10,40 +11,179 @@ type CharacterTab =
   | "biography"
   | "specialTraits";
 
+type SkillKey =
+  | "acr"
+  | "ani"
+  | "arc"
+  | "ath"
+  | "dec"
+  | "his"
+  | "ins"
+  | "itm"
+  | "inv"
+  | "med"
+  | "nat"
+  | "prc"
+  | "prf"
+  | "per"
+  | "rel"
+  | "slt"
+  | "ste"
+  | "sur";
+
+type CharacterProficiencies = {
+  saves: Partial<Record<AbilityKey, boolean>>;
+  skills: Partial<Record<SkillKey, boolean>>;
+  armor: string[];
+  weapons: string[];
+  languages: string[];
+  senses: string[];
+  resistances: string[];
+  damageImmunities: string[];
+  conditionImmunities: string[];
+  vulnerabilities: string[];
+};
+
+type CharacterSheetCharacter = HomebrewCharacter & {
+  proficiencies?: Partial<CharacterProficiencies>;
+};
+
 type CharacterSheetProps = {
-  initialCharacter?: HomebrewCharacter;
-  onSave: (character: HomebrewCharacter) => Promise<void> | void;
-  onExport: (character: HomebrewCharacter) => void;
+  initialCharacter?: CharacterSheetCharacter;
+  onSave: (character: CharacterSheetCharacter) => Promise<void> | void;
+  onExport: (character: CharacterSheetCharacter) => void;
   onClose?: () => void;
   windowed?: boolean;
 };
 
 const abilityKeys: AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
 
-const skills: [AbilityKey, string][] = [
-  ["dex", "Acrobatics"],
-  ["wis", "Animal Handling"],
-  ["int", "Arcana"],
-  ["str", "Athletics"],
-  ["cha", "Deception"],
-  ["int", "History"],
-  ["wis", "Insight"],
-  ["cha", "Intimidation"],
-  ["int", "Investigation"],
-  ["wis", "Medicine"],
-  ["int", "Nature"],
-  ["wis", "Perception"],
-  ["cha", "Performance"],
-  ["cha", "Persuasion"],
-  ["int", "Religion"],
-  ["dex", "Sleight of Hand"],
-  ["dex", "Stealth"],
-  ["wis", "Survival"]
+const skills: { key: SkillKey; ability: AbilityKey; label: string }[] = [
+  { key: "acr", ability: "dex", label: "Acrobatics" },
+  { key: "ani", ability: "wis", label: "Animal Handling" },
+  { key: "arc", ability: "int", label: "Arcana" },
+  { key: "ath", ability: "str", label: "Athletics" },
+  { key: "dec", ability: "cha", label: "Deception" },
+  { key: "his", ability: "int", label: "History" },
+  { key: "ins", ability: "wis", label: "Insight" },
+  { key: "itm", ability: "cha", label: "Intimidation" },
+  { key: "inv", ability: "int", label: "Investigation" },
+  { key: "med", ability: "wis", label: "Medicine" },
+  { key: "nat", ability: "int", label: "Nature" },
+  { key: "prc", ability: "wis", label: "Perception" },
+  { key: "prf", ability: "cha", label: "Performance" },
+  { key: "per", ability: "cha", label: "Persuasion" },
+  { key: "rel", ability: "int", label: "Religion" },
+  { key: "slt", ability: "dex", label: "Sleight of Hand" },
+  { key: "ste", ability: "dex", label: "Stealth" },
+  { key: "sur", ability: "wis", label: "Survival" }
 ];
 
-function abilityMod(score: number) {
-  const mod = Math.floor((score - 10) / 2);
-  return mod >= 0 ? `+${mod}` : `${mod}`;
+const armorOptions = ["Light Armor", "Medium Armor", "Heavy Armor", "Shields"];
+
+const weaponOptions = [
+  "Simple Weapons",
+  "Martial Weapons",
+  "Clubs",
+  "Daggers",
+  "Greatclubs",
+  "Handaxes",
+  "Javelins",
+  "Light Hammers",
+  "Maces",
+  "Quarterstaffs",
+  "Sickles",
+  "Spears",
+  "Light Crossbows",
+  "Darts",
+  "Shortbows",
+  "Slings",
+  "Battleaxes",
+  "Flails",
+  "Glaives",
+  "Greataxes",
+  "Greatswords",
+  "Halberds",
+  "Lances",
+  "Longswords",
+  "Mauls",
+  "Morningstars",
+  "Pikes",
+  "Rapiers",
+  "Scimitars",
+  "Shortswords",
+  "Tridents",
+  "War Picks",
+  "Warhammers",
+  "Whips",
+  "Blowguns",
+  "Hand Crossbows",
+  "Heavy Crossbows",
+  "Longbows",
+  "Nets"
+];
+
+const languageOptions = [
+  "Common",
+  "Dwarvish",
+  "Elvish",
+  "Giant",
+  "Gnomish",
+  "Goblin",
+  "Halfling",
+  "Orc",
+  "Abyssal",
+  "Celestial",
+  "Draconic",
+  "Deep Speech",
+  "Infernal",
+  "Primordial",
+  "Sylvan",
+  "Undercommon"
+];
+
+const senseOptions = ["Blindsight", "Darkvision", "Tremorsense", "Truesight"];
+
+const damageTypeOptions = [
+  "Acid",
+  "Bludgeoning",
+  "Cold",
+  "Fire",
+  "Force",
+  "Lightning",
+  "Necrotic",
+  "Piercing",
+  "Poison",
+  "Psychic",
+  "Radiant",
+  "Slashing",
+  "Thunder"
+];
+
+const conditionOptions = [
+  "Blinded",
+  "Charmed",
+  "Deafened",
+  "Exhaustion",
+  "Frightened",
+  "Grappled",
+  "Incapacitated",
+  "Invisible",
+  "Paralyzed",
+  "Petrified",
+  "Poisoned",
+  "Prone",
+  "Restrained",
+  "Stunned",
+  "Unconscious"
+];
+
+function abilityModNumber(score: number) {
+  return Math.floor((score - 10) / 2);
+}
+
+function formatMod(value: number) {
+  return value >= 0 ? `+${value}` : `${value}`;
 }
 
 function proficiencyBonus(level: number) {
@@ -57,6 +197,9 @@ export function CharacterSheet({
   onClose,
   windowed = false
 }: CharacterSheetProps) {
+  const initialProficiencies: Partial<CharacterProficiencies> =
+    initialCharacter?.proficiencies ?? {};
+
   const [characterId] = useState(() => initialCharacter?.id ?? crypto.randomUUID());
   const [characterName, setCharacterName] = useState(initialCharacter?.name ?? "Player Character");
   const [characterLevel, setCharacterLevel] = useState(initialCharacter?.level ?? 1);
@@ -78,6 +221,40 @@ export function CharacterSheet({
     }
   );
 
+  const [proficientSaves, setProficientSaves] = useState<Partial<Record<AbilityKey, boolean>>>(
+    initialProficiencies.saves ?? {}
+  );
+
+  const [proficientSkills, setProficientSkills] = useState<Partial<Record<SkillKey, boolean>>>(
+    initialProficiencies.skills ?? {}
+  );
+
+  const [armorProficiencies, setArmorProficiencies] = useState<string[]>(
+    initialProficiencies.armor ?? []
+  );
+
+  const [weaponProficiencies, setWeaponProficiencies] = useState<string[]>(
+    initialProficiencies.weapons ?? []
+  );
+
+  const [languages, setLanguages] = useState<string[]>(initialProficiencies.languages ?? []);
+  const [senses, setSenses] = useState<string[]>(initialProficiencies.senses ?? []);
+  const [resistances, setResistances] = useState<string[]>(initialProficiencies.resistances ?? []);
+
+  const [damageImmunities, setDamageImmunities] = useState<string[]>(
+    initialProficiencies.damageImmunities ?? []
+  );
+
+  const [conditionImmunities, setConditionImmunities] = useState<string[]>(
+    initialProficiencies.conditionImmunities ?? []
+  );
+
+  const [vulnerabilities, setVulnerabilities] = useState<string[]>(
+    initialProficiencies.vulnerabilities ?? []
+  );
+
+  const profBonus = proficiencyBonus(characterLevel);
+
   function updateAbility(ability: AbilityKey, value: number) {
     setCharacterAbilities((current) => ({
       ...current,
@@ -85,7 +262,88 @@ export function CharacterSheet({
     }));
   }
 
-  function buildCharacter(): HomebrewCharacter {
+  function abilityScoreDisplay(ability: AbilityKey, proficient: boolean) {
+    const base = abilityModNumber(characterAbilities[ability]);
+    return formatMod(base + (proficient ? profBonus : 0));
+  }
+
+  function toggleSaveProficiency(ability: AbilityKey) {
+    setProficientSaves((current) => ({
+      ...current,
+      [ability]: !current[ability]
+    }));
+  }
+
+  function toggleSkillProficiency(skill: SkillKey) {
+    setProficientSkills((current) => ({
+      ...current,
+      [skill]: !current[skill]
+    }));
+  }
+
+  function addTraitValue(value: string, setter: Dispatch<SetStateAction<string[]>>) {
+    if (!value) {
+      return;
+    }
+
+    setter((current) => {
+      if (current.includes(value)) {
+        return current;
+      }
+
+      return [...current, value];
+    });
+  }
+
+  function removeTraitValue(value: string, setter: Dispatch<SetStateAction<string[]>>) {
+    setter((current) => current.filter((entry) => entry !== value));
+  }
+
+  function renderTraitPicker(
+    label: string,
+    values: string[],
+    options: string[],
+    setter: Dispatch<SetStateAction<string[]>>
+  ) {
+    const remainingOptions = options.filter((option) => !values.includes(option));
+
+    return (
+      <section className="foundry-card trait-picker-card">
+        <h2>{label}</h2>
+
+        <select
+          value=""
+          onChange={(event) => addTraitValue(event.target.value, setter)}
+        >
+          <option value="">Add {label}</option>
+          {remainingOptions.map((option) => (
+            <option value={option} key={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+
+        {values.length === 0 ? (
+          <p className="muted-text">None selected.</p>
+        ) : (
+          <div className="foundry-trait-pills editable">
+            {values.map((value) => (
+              <button
+                type="button"
+                key={value}
+                onClick={() => removeTraitValue(value, setter)}
+                title={`Remove ${value}`}
+              >
+                {value} ×
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  function buildCharacter(): CharacterSheetCharacter {
     return {
       id: characterId,
       name: characterName,
@@ -96,7 +354,19 @@ export function CharacterSheet({
       abilities: characterAbilities,
       hpMax: characterHpMax,
       speed: characterSpeed,
-      img: initialCharacter?.img ?? "icons/svg/mystery-man.svg"
+      img: initialCharacter?.img ?? "icons/svg/mystery-man.svg",
+      proficiencies: {
+        saves: proficientSaves,
+        skills: proficientSkills,
+        armor: armorProficiencies,
+        weapons: weaponProficiencies,
+        languages,
+        senses,
+        resistances,
+        damageImmunities,
+        conditionImmunities,
+        vulnerabilities
+      }
     };
   }
 
@@ -108,6 +378,19 @@ export function CharacterSheet({
 
     await onSave(buildCharacter());
   }
+
+  const traitGroups = [
+    ["Senses", senses],
+    ["Resistances", resistances],
+    ["Damage Immunities", damageImmunities],
+    ["Condition Immunities", conditionImmunities],
+    ["Vulnerabilities", vulnerabilities],
+    ["Armor", armorProficiencies],
+    ["Weapons", weaponProficiencies],
+    ["Languages", languages]
+  ] as const;
+
+  const visibleTraitGroups = traitGroups.filter(([, values]) => values.length > 0);
 
   return (
     <section
@@ -152,12 +435,12 @@ export function CharacterSheet({
           <div className="sidebar-badges">
             <div className="stat-diamond">
               <span>Init</span>
-              <strong>{abilityMod(characterAbilities.dex)}</strong>
+              <strong>{abilityScoreDisplay("dex", false)}</strong>
             </div>
 
             <div className="stat-shield">
               <span>Prof</span>
-              <strong>+{proficiencyBonus(characterLevel)}</strong>
+              <strong>+{profBonus}</strong>
             </div>
 
             <div className="stat-diamond">
@@ -212,7 +495,7 @@ export function CharacterSheet({
             {abilityKeys.map((ability) => (
               <label className="foundry-ability" key={ability}>
                 <span>{ability.toUpperCase()}</span>
-                <strong>{abilityMod(characterAbilities[ability])}</strong>
+                <strong>{abilityScoreDisplay(ability, false)}</strong>
                 <input
                   type="number"
                   min={1}
@@ -249,12 +532,22 @@ export function CharacterSheet({
               <section className="foundry-card skills-card foundry-skills-panel">
                 <h2>Skills</h2>
 
-                {skills.map(([ability, skill]) => (
-                  <div className="foundry-row skill" key={skill}>
-                    <span className="prof-circle" />
-                    <b>{ability.toUpperCase()}</b>
-                    <p>{skill}</p>
-                    <strong>{abilityMod(characterAbilities[ability])}</strong>
+                {skills.map((skill) => (
+                  <div className="foundry-row skill" key={skill.key}>
+                    <button
+                      type="button"
+                      className={
+                        proficientSkills[skill.key] ? "prof-circle active" : "prof-circle"
+                      }
+                      onClick={() => toggleSkillProficiency(skill.key)}
+                      title={`Toggle ${skill.label} proficiency`}
+                    />
+
+                    <b>{skill.ability.toUpperCase()}</b>
+                    <p>{skill.label}</p>
+                    <strong>
+                      {abilityScoreDisplay(skill.ability, Boolean(proficientSkills[skill.key]))}
+                    </strong>
                   </div>
                 ))}
               </section>
@@ -273,9 +566,19 @@ export function CharacterSheet({
                       ["cha", "Charisma"]
                     ] as [AbilityKey, string][]).map(([ability, label]) => (
                       <div className="foundry-row save" key={ability}>
-                        <span className="prof-circle" />
+                        <button
+                          type="button"
+                          className={
+                            proficientSaves[ability] ? "prof-circle active" : "prof-circle"
+                          }
+                          onClick={() => toggleSaveProficiency(ability)}
+                          title={`Toggle ${label} save proficiency`}
+                        />
+
                         <p>{label}</p>
-                        <strong>{abilityMod(characterAbilities[ability])}</strong>
+                        <strong>
+                          {abilityScoreDisplay(ability, Boolean(proficientSaves[ability]))}
+                        </strong>
                       </div>
                     ))}
                   </div>
@@ -330,53 +633,25 @@ export function CharacterSheet({
                   </label>
                 </section>
 
-                {(() => {
-                  const armorProficiencies: string[] = [];
-                  const weaponProficiencies: string[] = [];
-                  const languages: string[] = [];
-                  const senses: string[] = [];
-                  const resistances: string[] = [];
-                  const damageImmunities: string[] = [];
-                  const conditionImmunities: string[] = [];
-                  const vulnerabilities: string[] = [];
-
-                  const traitGroups = [
-                    ["Senses", senses],
-                    ["Resistances", resistances],
-                    ["Damage Immunities", damageImmunities],
-                    ["Condition Immunities", conditionImmunities],
-                    ["Vulnerabilities", vulnerabilities],
-                    ["Armor", armorProficiencies],
-                    ["Weapons", weaponProficiencies],
-                    ["Languages", languages]
-                  ] as const;
-
-                  const visibleTraitGroups = traitGroups.filter(([, values]) => values.length > 0);
-
-                  if (visibleTraitGroups.length === 0) {
-                    return null;
-                  }
-
-                  return (
-                    <section className="foundry-traits-list">
-                      {visibleTraitGroups.map(([label, values]) => (
-                        <div className="foundry-trait-row" key={label}>
-                          <div className="foundry-trait-header">
-                            <span>{label}</span>
-                          </div>
-
-                          <div className="foundry-trait-pills">
-                            {values.map((value) => (
-                              <button type="button" key={value}>
-                                {value}
-                              </button>
-                            ))}
-                          </div>
+                {visibleTraitGroups.length > 0 && (
+                  <section className="foundry-traits-list">
+                    {visibleTraitGroups.map(([label, values]) => (
+                      <div className="foundry-trait-row" key={label}>
+                        <div className="foundry-trait-header">
+                          <span>{label}</span>
                         </div>
-                      ))}
-                    </section>
-                  );
-                })()}
+
+                        <div className="foundry-trait-pills">
+                          {values.map((value) => (
+                            <button type="button" key={value}>
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                )}
               </div>
             </div>
           )}
@@ -436,15 +711,52 @@ export function CharacterSheet({
           )}
 
           {characterTab === "specialTraits" && (
-            <section className="foundry-card tab-card">
-              <h2>Special Traits</h2>
-              <div className="drop-slot">Add Language</div>
-              <div className="drop-slot">Add Creature Type</div>
-              <div className="drop-slot">Add Damage Resistance</div>
-              <div className="drop-slot">Add Damage Immunity</div>
-              <div className="drop-slot">Add Damage Vulnerability</div>
-              <div className="drop-slot">Add Senses</div>
-            </section>
+            <div className="traits-editor-grid">
+              {renderTraitPicker(
+                "Armor Proficiencies",
+                armorProficiencies,
+                armorOptions,
+                setArmorProficiencies
+              )}
+
+              {renderTraitPicker(
+                "Weapon Proficiencies",
+                weaponProficiencies,
+                weaponOptions,
+                setWeaponProficiencies
+              )}
+
+              {renderTraitPicker("Languages", languages, languageOptions, setLanguages)}
+              {renderTraitPicker("Senses", senses, senseOptions, setSenses)}
+
+              {renderTraitPicker(
+                "Resistances",
+                resistances,
+                damageTypeOptions,
+                setResistances
+              )}
+
+              {renderTraitPicker(
+                "Damage Immunities",
+                damageImmunities,
+                damageTypeOptions,
+                setDamageImmunities
+              )}
+
+              {renderTraitPicker(
+                "Condition Immunities",
+                conditionImmunities,
+                conditionOptions,
+                setConditionImmunities
+              )}
+
+              {renderTraitPicker(
+                "Vulnerabilities",
+                vulnerabilities,
+                damageTypeOptions,
+                setVulnerabilities
+              )}
+            </div>
           )}
 
           <div className="sheet-footer-actions">
