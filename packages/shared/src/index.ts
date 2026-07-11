@@ -18,10 +18,14 @@ export const FoundryItemTypeSchema = z.enum([
 export type FoundryItemType = z.infer<typeof FoundryItemTypeSchema>;
 
 export const FoundryFeatSystemTypeSchema = z.enum([
-  "feat",
+  "background",
   "class",
+  "monster",
   "race",
-  "monster"
+  "enchantment",
+  "feat",
+  "supernatural",
+  "vehicle"
 ]);
 
 export type FoundryFeatSystemType = z.infer<typeof FoundryFeatSystemTypeSchema>;
@@ -79,9 +83,56 @@ export type HomebrewCreation = z.infer<typeof HomebrewCreationSchema>;
  */
 export const HomebrewFeatureSchema = z.object({
   id: z.string(),
-  name: z.string(),
+  name: z.string().min(1),
   type: z.enum(["feat", "spell", "classFeature", "item", "raceFeature"]),
   description: z.string(),
+
+  img: z.string().optional(),
+  chatDescription: z.string().optional(),
+
+  foundryType: FoundryFeatSystemTypeSchema.optional(),
+
+  requiredLevel: z.number().nullable().optional(),
+  requiredItems: z.string().optional(),
+  repeatable: z.boolean().optional(),
+
+  properties: z
+    .object({
+      magical: z.boolean().optional(),
+      passiveTrait: z.boolean().optional()
+    })
+    .optional(),
+
+  uses: z
+    .object({
+      spent: z.number().min(0).optional(),
+      max: z.string().optional(),
+      recovery: z.enum(["none", "sr", "lr", "srOrLr"]).optional()
+    })
+    .optional(),
+
+  activity: z
+    .object({
+      activation: z.enum(["none", "action", "bonus", "reaction", "special"]).optional(),
+      rangeUnits: z.enum(["self", "touch", "ft", "spec"]).optional(),
+      rangeValue: z.string().optional(),
+      targetType: z
+        .enum([
+          "self",
+          "creature",
+          "ally",
+          "enemy",
+          "object",
+          "space",
+          "area",
+          "special",
+          ""
+        ])
+        .optional(),
+      targetValue: z.string().optional()
+    })
+    .optional(),
+
   levelRequirement: z.number().optional()
 });
 
@@ -117,7 +168,7 @@ export const HomebrewCharacterSchema = z.object({
   proficiencies: z
     .object({
       saves: z.record(z.string(), z.boolean()).default({}),
-      skills: z.record(z.string(), z.boolean()).default({}),
+      skills: z.record(z.string(), z.number().min(0).max(2)).default({}),
       armor: z.array(z.string()).default([]),
       weapons: z.array(z.string()).default([]),
       languages: z.array(z.string()).default([]),

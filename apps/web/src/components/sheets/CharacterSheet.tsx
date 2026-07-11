@@ -33,7 +33,7 @@ type SkillKey =
 
 type CharacterProficiencies = {
   saves: Partial<Record<AbilityKey, boolean>>;
-  skills: Partial<Record<SkillKey, boolean>>;
+  skills: Partial<Record<SkillKey, number>>;
   armor: string[];
   weapons: string[];
   languages: string[];
@@ -225,7 +225,7 @@ export function CharacterSheet({
     initialProficiencies.saves ?? {}
   );
 
-  const [proficientSkills, setProficientSkills] = useState<Partial<Record<SkillKey, boolean>>>(
+  const [proficientSkills, setProficientSkills] = useState<Partial<Record<SkillKey, number>>>(
     initialProficiencies.skills ?? {}
   );
 
@@ -267,6 +267,11 @@ export function CharacterSheet({
     return formatMod(base + (proficient ? profBonus : 0));
   }
 
+  function skillScoreDisplay(ability: AbilityKey, proficiencyLevel: number) {
+    const base = abilityModNumber(characterAbilities[ability]);
+    return formatMod(base + profBonus * proficiencyLevel);
+  }
+
   function toggleSaveProficiency(ability: AbilityKey) {
     setProficientSaves((current) => ({
       ...current,
@@ -275,10 +280,15 @@ export function CharacterSheet({
   }
 
   function toggleSkillProficiency(skill: SkillKey) {
-    setProficientSkills((current) => ({
-      ...current,
-      [skill]: !current[skill]
-    }));
+    setProficientSkills((current) => {
+      const currentValue = current[skill] ?? 0;
+      const nextValue = currentValue === 0 ? 1 : currentValue === 1 ? 2 : 0;
+
+      return {
+        ...current,
+        [skill]: nextValue
+      };
+    });
   }
 
   function addTraitValue(value: string, setter: Dispatch<SetStateAction<string[]>>) {
@@ -311,10 +321,7 @@ export function CharacterSheet({
       <section className="foundry-card trait-picker-card">
         <h2>{label}</h2>
 
-        <select
-          value=""
-          onChange={(event) => addTraitValue(event.target.value, setter)}
-        >
+        <select value="" onChange={(event) => addTraitValue(event.target.value, setter)}>
           <option value="">Add {label}</option>
           {remainingOptions.map((option) => (
             <option value={option} key={option}>
@@ -537,17 +544,19 @@ export function CharacterSheet({
                     <button
                       type="button"
                       className={
-                        proficientSkills[skill.key] ? "prof-circle active" : "prof-circle"
+                        proficientSkills[skill.key] === 2
+                          ? "prof-circle expertise"
+                          : proficientSkills[skill.key] === 1
+                            ? "prof-circle active"
+                            : "prof-circle"
                       }
                       onClick={() => toggleSkillProficiency(skill.key)}
-                      title={`Toggle ${skill.label} proficiency`}
+                      title={`Toggle ${skill.label} proficiency / expertise`}
                     />
 
                     <b>{skill.ability.toUpperCase()}</b>
                     <p>{skill.label}</p>
-                    <strong>
-                      {abilityScoreDisplay(skill.ability, Boolean(proficientSkills[skill.key]))}
-                    </strong>
+                    <strong>{skillScoreDisplay(skill.ability, proficientSkills[skill.key] ?? 0)}</strong>
                   </div>
                 ))}
               </section>
@@ -568,17 +577,13 @@ export function CharacterSheet({
                       <div className="foundry-row save" key={ability}>
                         <button
                           type="button"
-                          className={
-                            proficientSaves[ability] ? "prof-circle active" : "prof-circle"
-                          }
+                          className={proficientSaves[ability] ? "prof-circle active" : "prof-circle"}
                           onClick={() => toggleSaveProficiency(ability)}
                           title={`Toggle ${label} save proficiency`}
                         />
 
                         <p>{label}</p>
-                        <strong>
-                          {abilityScoreDisplay(ability, Boolean(proficientSaves[ability]))}
-                        </strong>
+                        <strong>{abilityScoreDisplay(ability, Boolean(proficientSaves[ability]))}</strong>
                       </div>
                     ))}
                   </div>
@@ -631,6 +636,14 @@ export function CharacterSheet({
                       onChange={(event) => setCharacterSpeed(Number(event.target.value))}
                     />
                   </label>
+
+                  <button
+                    type="button"
+                    className="small-button edit-traits-button"
+                    onClick={() => setCharacterTab("specialTraits")}
+                  >
+                    Edit Proficiencies & Traits
+                  </button>
                 </section>
 
                 {visibleTraitGroups.length > 0 && (

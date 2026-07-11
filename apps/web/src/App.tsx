@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import type { HomebrewCharacter, HomebrewFeature } from "@foundry-homebrew-hub/shared";
 import { CharacterSheet } from "./components/sheets/CharacterSheet";
+import { FeatureSheet } from "./components/sheets/FeatureSheet";
 import { FoundryWorkspace } from "./components/workspace/FoundryWorkspace";
 import type { SidebarTab, WorkspaceWindow } from "./types/workspace";
 import "./App.css";
 
-type Page = "library" | "create" | "create-feature" | "create-character";
+type Page = "library" | "create" | "create-character";
 
 type ExportableCharacter = HomebrewCharacter & {
   proficiencies?: {
     saves?: Record<string, boolean>;
-    skills?: Record<string, boolean>;
+    skills?: Record<string, number>;
     armor?: string[];
     weapons?: string[];
     languages?: string[];
@@ -19,6 +20,53 @@ type ExportableCharacter = HomebrewCharacter & {
     damageImmunities?: string[];
     conditionImmunities?: string[];
     vulnerabilities?: string[];
+  };
+};
+
+type ExportableFeature = HomebrewFeature & {
+  img?: string;
+  chatDescription?: string;
+
+  foundryType?:
+    | "background"
+    | "class"
+    | "monster"
+    | "race"
+    | "enchantment"
+    | "feat"
+    | "supernatural"
+    | "vehicle";
+
+  requiredLevel?: number | null;
+  requiredItems?: string;
+  repeatable?: boolean;
+
+  properties?: {
+    magical?: boolean;
+    passiveTrait?: boolean;
+  };
+
+  uses?: {
+    spent?: number;
+    max?: string;
+    recovery?: "none" | "sr" | "lr" | "srOrLr";
+  };
+
+  activity?: {
+    activation?: "none" | "action" | "bonus" | "reaction" | "special";
+    rangeUnits?: "self" | "touch" | "ft" | "spec";
+    rangeValue?: string;
+    targetType?:
+      | "self"
+      | "creature"
+      | "ally"
+      | "enemy"
+      | "object"
+      | "space"
+      | "area"
+      | "special"
+      | "";
+    targetValue?: string;
   };
 };
 
@@ -32,11 +80,6 @@ function App() {
   const [features, setFeatures] = useState<HomebrewFeature[]>([]);
   const [characters, setCharacters] = useState<HomebrewCharacter[]>([]);
 
-  const [name, setName] = useState("");
-  const [type, setType] = useState<HomebrewFeature["type"]>("feat");
-  const [description, setDescription] = useState("");
-  const [editingFeatureId, setEditingFeatureId] = useState<string | null>(null);
-
   async function loadFeatures() {
     const response = await fetch("http://localhost:3000/features");
     const data = await response.json();
@@ -49,52 +92,30 @@ function App() {
     setCharacters(data);
   }
 
-  async function saveFeature() {
-    if (!name.trim()) {
-      alert("Feature needs a name.");
-      return;
-    }
+  async function saveFeatureDocument(feature: HomebrewFeature) {
+    const alreadyExists = features.some((entry) => entry.id === feature.id);
 
-    if (!description.trim()) {
-      alert("Feature needs a description.");
-      return;
-    }
-
-    const featureData: HomebrewFeature = {
-      id: editingFeatureId ?? crypto.randomUUID(),
-      name,
-      type,
-      description
-    };
-
-    const url = editingFeatureId
-      ? `http://localhost:3000/features/${editingFeatureId}`
-      : "http://localhost:3000/features";
-
-    const method = editingFeatureId ? "PUT" : "POST";
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(featureData)
-    });
+    const response = await fetch(
+      alreadyExists
+        ? `http://localhost:3000/features/${feature.id}`
+        : "http://localhost:3000/features",
+      {
+        method: alreadyExists ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(feature)
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Save/update failed:", response.status, errorText);
-      alert(`Save/update failed: ${response.status}`);
+      console.error("Feature save failed:", response.status, errorText);
+      alert(`Failed to save feature: ${response.status}`);
       return;
     }
 
-    setName("");
-    setType("feat");
-    setDescription("");
-    setEditingFeatureId(null);
-
     await loadFeatures();
-    setPage("library");
     setActiveSidebarTab("items");
   }
 
@@ -202,6 +223,9 @@ function App() {
   }
 
   function openNewCharacterWindow() {
+    setPage("library");
+    setActiveSidebarTab("actors");
+
     openWorkspaceWindow({
       type: "character",
       title: "New Character",
@@ -209,6 +233,20 @@ function App() {
       y: 60,
       width: 1180,
       height: 760
+    });
+  }
+
+  function openNewFeatureWindow() {
+    setPage("library");
+    setActiveSidebarTab("items");
+
+    openWorkspaceWindow({
+      type: "feature",
+      title: "New Feature",
+      x: 180,
+      y: 120,
+      width: 720,
+      height: 640
     });
   }
 
@@ -249,8 +287,8 @@ function App() {
       documentId: feature.id,
       x: 180,
       y: 120,
-      width: 620,
-      height: 560
+      width: 720,
+      height: 640
     });
   }
 
@@ -273,10 +311,13 @@ function App() {
       const feature = features.find((entry) => entry.id === window.documentId);
 
       return (
-        <div className="fh-window-placeholder">
-          <h3>{feature?.name ?? "Feature"}</h3>
-          <p>{feature?.description ?? "Feature sheet window goes here next."}</p>
-        </div>
+        <FeatureSheet
+          initialFeature={feature}
+          onSave={saveFeatureDocument}
+          onExport={exportFeatureItem}
+          onClose={() => closeWorkspaceWindow(window.id)}
+          windowed
+        />
       );
     }
 
@@ -294,6 +335,237 @@ function App() {
       .trim()
       .replaceAll(" ", "-")
       .replace(/[^a-z0-9-]/g, "");
+  }
+
+  function escapeHtml(text: string) {
+    return text
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function textToFoundryHtml(text: string) {
+    const trimmed = text.trim();
+
+    if (!trimmed) {
+      return "";
+    }
+
+    if (trimmed.startsWith("<")) {
+      return trimmed;
+    }
+
+    return trimmed
+      .split(/\n+/)
+      .map((paragraph) => `<p>${escapeHtml(paragraph.trim())}</p>`)
+      .join("");
+  }
+
+  function exportFeatureItem(feature: HomebrewFeature) {
+    const fullFeature = feature as ExportableFeature;
+
+    const propertyValues = [
+      fullFeature.properties?.magical ? "mgc" : null,
+      fullFeature.properties?.passiveTrait ? "trait" : null
+    ].filter((value): value is string => Boolean(value));
+
+    const recovery =
+      fullFeature.uses?.recovery === "srOrLr"
+        ? [
+            { period: "sr", type: "recoverAll" },
+            { period: "lr", type: "recoverAll" }
+          ]
+        : fullFeature.uses?.recovery === "sr" || fullFeature.uses?.recovery === "lr"
+          ? [{ period: fullFeature.uses.recovery, type: "recoverAll" }]
+          : [];
+
+    const hasActivity =
+      fullFeature.activity?.activation !== undefined &&
+      fullFeature.activity.activation !== "none";
+
+    const activityId = crypto.randomUUID().replaceAll("-", "").slice(0, 16);
+
+    const item = {
+      name: fullFeature.name,
+      type: "feat",
+      img: fullFeature.img ?? "icons/svg/item-bag.svg",
+
+      system: {
+        activities: hasActivity
+          ? {
+              [activityId]: {
+                type: "utility",
+                _id: activityId,
+                img: "",
+                sort: 0,
+
+                activation: {
+                  type: fullFeature.activity?.activation ?? "",
+                  override: true,
+                  condition: ""
+                },
+
+                consumption: {
+                  scaling: {
+                    allowed: false
+                  },
+                  spellSlot: true,
+                  targets: fullFeature.uses?.max
+                    ? [
+                        {
+                          type: "itemUses",
+                          value: "1",
+                          scaling: {}
+                        }
+                      ]
+                    : []
+                },
+
+                description: {
+                  chatFlavor: fullFeature.chatDescription ?? ""
+                },
+
+                duration: {
+                  units: "inst",
+                  concentration: false,
+                  override: false
+                },
+
+                effects: [],
+                flags: {},
+
+                range: {
+                  units: fullFeature.activity?.rangeUnits ?? "self",
+                  override: false,
+                  special: fullFeature.activity?.rangeValue ?? ""
+                },
+
+                target: {
+                  template: {
+                    contiguous: false,
+                    stationary: false,
+                    units: "ft",
+                    type: ""
+                  },
+                  affects: {
+                    choice: false,
+                    type: fullFeature.activity?.targetType ?? ""
+                  },
+                  override: false,
+                  prompt: true
+                },
+
+                uses: {
+                  spent: 0,
+                  recovery: [],
+                  max: ""
+                },
+
+                visibility: {
+                  level: {
+                    min: null,
+                    max: null
+                  },
+                  requireAttunement: false,
+                  requireIdentification: false,
+                  requireMagic: false,
+                  identifier: ""
+                },
+
+                roll: {
+                  prompt: false,
+                  visible: false,
+                  name: "",
+                  formula: ""
+                },
+
+                useConditionText: "",
+                useConditionReason: "",
+                effectConditionText: "",
+
+                macroData: {
+                  name: "",
+                  command: ""
+                },
+
+                ignoreTraits: {
+                  idi: false,
+                  idr: false,
+                  idv: false,
+                  ida: false,
+                  idm: false
+                },
+
+                name: ""
+              }
+            }
+          : {},
+
+        uses: {
+          spent: fullFeature.uses?.spent ?? 0,
+          recovery,
+          max: fullFeature.uses?.max ?? ""
+        },
+
+        advancement: {},
+
+        description: {
+          value: textToFoundryHtml(fullFeature.description),
+          chat: fullFeature.chatDescription ?? ""
+        },
+
+        identifier: "feature",
+
+        source: {
+          revision: 1,
+          rules: "2024"
+        },
+
+        crewed: false,
+        enchant: {},
+
+        prerequisites: {
+          items: fullFeature.requiredItems
+            ? fullFeature.requiredItems
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean)
+            : [],
+          repeatable: fullFeature.repeatable ?? false,
+          level: fullFeature.requiredLevel ?? null
+        },
+
+        properties: propertyValues,
+        requirements: "",
+
+        type: {
+          value: fullFeature.foundryType ?? "",
+          subtype: ""
+        }
+      },
+
+      effects: [],
+      flags: {},
+
+      ownership: {
+        default: 0
+      }
+    };
+
+    const file = new Blob([JSON.stringify(item, null, 2)], {
+      type: "application/json"
+    });
+
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `${slugify(fullFeature.name)}-item.json`;
+    link.click();
+
+    URL.revokeObjectURL(url);
   }
 
   function exportCharacterActor(character: ExportableCharacter) {
@@ -417,7 +689,7 @@ function App() {
     }
 
     function skillValue(skill: string) {
-      return proficiencies.skills?.[skill] ? 1 : 0;
+      return proficiencies.skills?.[skill] ?? 0;
     }
 
     function saveValue(ability: string) {
@@ -428,6 +700,7 @@ function App() {
       name: character.name,
       type: "character",
       img: character.img,
+
       system: {
         abilities: {
           str: { value: character.abilities.str, proficient: saveValue("str") },
@@ -466,14 +739,17 @@ function App() {
             temp: 0,
             tempmax: 0
           },
+
           ac: {
             flat: null,
             calc: "default"
           },
+
           init: {
             ability: "",
             bonus: ""
           },
+
           movement: {
             burrow: "",
             climb: "",
@@ -483,12 +759,13 @@ function App() {
             units: "ft",
             hover: false
           },
+
           senses: {
             ranges: {
-              blindsight: proficiencies.senses?.includes("Blindsight") ? 30 : null,
-              darkvision: proficiencies.senses?.includes("Darkvision") ? 60 : null,
-              tremorsense: proficiencies.senses?.includes("Tremorsense") ? 30 : null,
-              truesight: proficiencies.senses?.includes("Truesight") ? 30 : null
+              blindsight: proficiencies.senses.includes("Blindsight") ? 30 : null,
+              darkvision: proficiencies.senses.includes("Darkvision") ? 60 : null,
+              tremorsense: proficiencies.senses.includes("Tremorsense") ? 30 : null,
+              truesight: proficiencies.senses.includes("Truesight") ? 30 : null
             },
             units: "ft",
             special: ""
@@ -568,11 +845,13 @@ function App() {
 
       items: [],
       effects: [],
+
       flags: {
         "foundry-homebrew-hub": {
           originalId: character.id
         }
       },
+
       ownership: {
         default: 0
       }
@@ -590,14 +869,6 @@ function App() {
     link.click();
 
     URL.revokeObjectURL(url);
-  }
-
-  function cancelFeatureForm() {
-    setName("");
-    setType("feat");
-    setDescription("");
-    setEditingFeatureId(null);
-    setPage("library");
   }
 
   useEffect(() => {
@@ -640,7 +911,7 @@ function App() {
           windows={workspaceWindows}
           onSidebarTabChange={setActiveSidebarTab}
           onCreateCharacter={openNewCharacterWindow}
-          onCreateFeature={() => setPage("create-feature")}
+          onCreateFeature={openNewFeatureWindow}
           onOpenCharacter={openCharacterWindow}
           onOpenFeature={openFeatureWindow}
           onCloseWindow={closeWorkspaceWindow}
@@ -666,10 +937,10 @@ function App() {
           </div>
 
           <div className="create-grid">
-            <button className="create-card" onClick={() => setPage("create-feature")}>
+            <button className="create-card" onClick={openNewFeatureWindow}>
               <span>✨</span>
               <h3>Feature / Item</h3>
-              <p>Create a feat, class feature, race feature, or item-like ability.</p>
+              <p>Create a feat, class feature, species feature, or item-like ability.</p>
             </button>
 
             <button className="create-card disabled" disabled>
@@ -701,63 +972,6 @@ function App() {
               <h3>Species / Background</h3>
               <p>Create species, backgrounds, and starting traits. Later.</p>
             </button>
-          </div>
-        </section>
-      )}
-
-      {page === "create-feature" && (
-        <section className="page-panel">
-          <div className="section-header">
-            <div>
-              <p className="eyebrow">Create New</p>
-              <h1>{editingFeatureId ? "Edit Item" : "Create Item"}</h1>
-            </div>
-
-            <button className="small-button" onClick={() => setPage("library")}>
-              Back to Workspace
-            </button>
-          </div>
-
-          <div className="form-card">
-            <label>
-              Name
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Divine Smite Variant"
-              />
-            </label>
-
-            <label>
-              Type
-              <select
-                value={type}
-                onChange={(event) => setType(event.target.value as HomebrewFeature["type"])}
-              >
-                <option value="feat">Feat</option>
-                <option value="spell">Spell</option>
-                <option value="classFeature">Class Feature</option>
-                <option value="item">Item</option>
-                <option value="raceFeature">Race Feature</option>
-              </select>
-            </label>
-
-            <label>
-              Description
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Write what the item/feature does..."
-              />
-            </label>
-
-            <div className="form-actions">
-              <button className="primary-button" onClick={saveFeature}>
-                {editingFeatureId ? "Save Changes" : "Save to Library"}
-              </button>
-
-              <button onClick={cancelFeatureForm}>Cancel</button>
-            </div>
           </div>
         </section>
       )}
