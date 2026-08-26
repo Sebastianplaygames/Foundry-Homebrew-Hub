@@ -113,9 +113,13 @@ export const HomebrewFeatureSchema = z.object({
 
   activity: z
     .object({
+      type: z.enum(["utility", "damage", "heal", "save"]).optional(),
+
       activation: z.enum(["none", "action", "bonus", "reaction", "special"]).optional(),
+
       rangeUnits: z.enum(["self", "touch", "ft", "spec"]).optional(),
       rangeValue: z.string().optional(),
+
       targetType: z
         .enum([
           "self",
@@ -129,7 +133,16 @@ export const HomebrewFeatureSchema = z.object({
           ""
         ])
         .optional(),
-      targetValue: z.string().optional()
+      targetValue: z.string().optional(),
+
+      damageFormula: z.string().optional(),
+      damageType: z.string().optional(),
+
+      healingFormula: z.string().optional(),
+
+      saveAbility: z.enum(["str", "dex", "con", "int", "wis", "cha", ""]).optional(),
+      saveDc: z.string().optional(),
+      saveEffect: z.string().optional()
     })
     .optional(),
 

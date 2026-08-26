@@ -3,7 +3,8 @@ import type { HomebrewCharacter, HomebrewFeature } from "@foundry-homebrew-hub/s
 import { CharacterSheet } from "./components/sheets/CharacterSheet";
 import { FeatureSheet } from "./components/sheets/FeatureSheet";
 import { FoundryWorkspace } from "./components/workspace/FoundryWorkspace";
-import type { SidebarTab, WorkspaceWindow } from "./types/workspace";
+import { ItemTypePicker } from "./components/workspace/ItemTypePicker";
+import type { ItemCreationType, SidebarTab, WorkspaceWindow } from "./types/workspace";
 import "./App.css";
 
 type Page = "library" | "create" | "create-character";
@@ -53,6 +54,7 @@ type ExportableFeature = HomebrewFeature & {
   };
 
   activity?: {
+    type?: "utility" | "damage" | "heal" | "save";
     activation?: "none" | "action" | "bonus" | "reaction" | "special";
     rangeUnits?: "self" | "touch" | "ft" | "spec";
     rangeValue?: string;
@@ -67,6 +69,15 @@ type ExportableFeature = HomebrewFeature & {
       | "special"
       | "";
     targetValue?: string;
+
+    damageFormula?: string;
+    damageType?: string;
+
+    healingFormula?: string;
+
+    saveAbility?: "str" | "dex" | "con" | "int" | "wis" | "cha" | "";
+    saveDc?: string;
+    saveEffect?: string;
   };
 };
 
@@ -250,6 +261,66 @@ function App() {
     });
   }
 
+  function itemCreationTitle(itemType: ItemCreationType) {
+    const labels: Record<ItemCreationType, string> = {
+      background: "Background",
+      class: "Class",
+      consumable: "Consumable",
+      container: "Container",
+      equipment: "Equipment",
+      facility: "Facility",
+      feature: "Feature",
+      loot: "Loot",
+      species: "Species",
+      spell: "Spell",
+      subclass: "Subclass",
+      tool: "Tool",
+      weapon: "Weapon"
+    };
+
+    return labels[itemType];
+  }
+
+  function openItemTypePickerWindow() {
+    setPage("library");
+    setActiveSidebarTab("items");
+
+    openWorkspaceWindow({
+      type: "item-type-picker",
+      title: "Create Item",
+      x: 220,
+      y: 80,
+      width: 360,
+      height: 650
+    });
+  }
+
+  function createItemFromPicker(pickerWindowId: string, itemType: ItemCreationType) {
+    closeWorkspaceWindow(pickerWindowId);
+
+    if (itemType === "feature") {
+      openWorkspaceWindow({
+        type: "feature",
+        title: "New Feature",
+        x: 180,
+        y: 120,
+        width: 720,
+        height: 640
+      });
+
+      return;
+    }
+
+    openWorkspaceWindow({
+      type: itemType,
+      title: `New ${itemCreationTitle(itemType)}`,
+      x: 180,
+      y: 120,
+      width: 720,
+      height: 640
+    });
+  }
+  
   function openCharacterWindow(character: HomebrewCharacter) {
     const existingWindow = workspaceWindows.find(
       (window) => window.type === "character" && window.documentId === character.id
@@ -293,6 +364,15 @@ function App() {
   }
 
   function renderWorkspaceWindow(window: WorkspaceWindow) {
+    if (window.type === "item-type-picker") {
+      return (
+        <ItemTypePicker
+          onSelect={(itemType) => createItemFromPicker(window.id, itemType)}
+          onClose={() => closeWorkspaceWindow(window.id)}
+        />
+      );
+    }
+
     if (window.type === "character") {
       const character = characters.find((entry) => entry.id === window.documentId);
 
@@ -324,7 +404,10 @@ function App() {
     return (
       <div className="fh-window-placeholder">
         <h3>{window.title}</h3>
-        <p>Window content goes here.</p>
+        <p>
+          The {window.type} sheet is not built yet. Feature items work now; this
+          sheet comes later.
+        </p>
       </div>
     );
   }
@@ -381,11 +464,201 @@ function App() {
           ? [{ period: fullFeature.uses.recovery, type: "recoverAll" }]
           : [];
 
+    const activityType = fullFeature.activity?.type ?? "utility";
+
     const hasActivity =
       fullFeature.activity?.activation !== undefined &&
       fullFeature.activity.activation !== "none";
 
     const activityId = crypto.randomUUID().replaceAll("-", "").slice(0, 16);
+
+    function baseActivity() {
+      return {
+        _id: activityId,
+        img: "",
+        sort: 0,
+
+        activation: {
+          type: fullFeature.activity?.activation ?? "",
+          override: true,
+          condition: ""
+        },
+
+        consumption: {
+          scaling: {
+            allowed: false
+          },
+          spellSlot: true,
+          targets: fullFeature.uses?.max
+            ? [
+                {
+                  type: "itemUses",
+                  value: "1",
+                  scaling: {}
+                }
+              ]
+            : []
+        },
+
+        description: {
+          chatFlavor: fullFeature.chatDescription ?? ""
+        },
+
+        duration: {
+          units: "inst",
+          concentration: false,
+          override: false
+        },
+
+        effects: [],
+        flags: {},
+
+        range: {
+          units: fullFeature.activity?.rangeUnits ?? "self",
+          override: false,
+          special: fullFeature.activity?.rangeValue ?? ""
+        },
+
+        target: {
+          template: {
+            contiguous: false,
+            stationary: false,
+            units: "ft",
+            type: fullFeature.activity?.targetType === "area" ? "circle" : ""
+          },
+          affects: {
+            choice: false,
+            type: fullFeature.activity?.targetType ?? "",
+            count: fullFeature.activity?.targetValue ?? ""
+          },
+          override: false,
+          prompt: true
+        },
+
+        uses: {
+          spent: 0,
+          recovery: [],
+          max: ""
+        },
+
+        visibility: {
+          level: {
+            min: null,
+            max: null
+          },
+          requireAttunement: false,
+          requireIdentification: false,
+          requireMagic: false,
+          identifier: ""
+        },
+
+        useConditionText: "",
+        useConditionReason: "",
+        effectConditionText: fullFeature.activity?.saveEffect ?? "",
+
+        macroData: {
+          name: "",
+          command: ""
+        },
+
+        ignoreTraits: {
+          idi: false,
+          idr: false,
+          idv: false,
+          ida: false,
+          idm: false
+        },
+
+        name: ""
+      };
+    }
+
+    function buildActivity() {
+      const base = baseActivity();
+
+      if (activityType === "heal") {
+        return {
+          ...base,
+          type: "heal",
+          healing: {
+            types: ["healing"],
+            custom: {
+              enabled: true,
+              formula: fullFeature.activity?.healingFormula ?? "0"
+            },
+            scaling: {
+              number: 1
+            },
+            number: null,
+            denomination: null,
+            bonus: ""
+          }
+        };
+      }
+
+      if (activityType === "damage") {
+        return {
+          ...base,
+          type: "damage",
+          damage: {
+            critical: {
+              allow: true,
+              bonus: ""
+            },
+            parts: [
+              {
+                custom: {
+                  enabled: true,
+                  formula: fullFeature.activity?.damageFormula ?? "0"
+                },
+                number: null,
+                denomination: null,
+                bonus: "",
+                types: [fullFeature.activity?.damageType ?? ""],
+                scaling: {
+                  mode: "",
+                  number: null,
+                  formula: ""
+                }
+              }
+            ]
+          }
+        };
+      }
+
+      if (activityType === "save") {
+        return {
+          ...base,
+          type: "save",
+          save: {
+            ability: fullFeature.activity?.saveAbility
+              ? [fullFeature.activity.saveAbility]
+              : [],
+            dc: {
+              calculation: "",
+              formula: fullFeature.activity?.saveDc ?? ""
+            }
+          },
+          roll: {
+            prompt: false,
+            visible: false,
+            name: "Effect",
+            formula: ""
+          }
+        };
+      }
+
+      return {
+        ...base,
+        type: "utility",
+        roll: {
+          prompt: false,
+          visible: false,
+          name: "",
+          formula: ""
+        }
+      };
+    }
 
     const item = {
       name: fullFeature.name,
@@ -395,111 +668,7 @@ function App() {
       system: {
         activities: hasActivity
           ? {
-              [activityId]: {
-                type: "utility",
-                _id: activityId,
-                img: "",
-                sort: 0,
-
-                activation: {
-                  type: fullFeature.activity?.activation ?? "",
-                  override: true,
-                  condition: ""
-                },
-
-                consumption: {
-                  scaling: {
-                    allowed: false
-                  },
-                  spellSlot: true,
-                  targets: fullFeature.uses?.max
-                    ? [
-                        {
-                          type: "itemUses",
-                          value: "1",
-                          scaling: {}
-                        }
-                      ]
-                    : []
-                },
-
-                description: {
-                  chatFlavor: fullFeature.chatDescription ?? ""
-                },
-
-                duration: {
-                  units: "inst",
-                  concentration: false,
-                  override: false
-                },
-
-                effects: [],
-                flags: {},
-
-                range: {
-                  units: fullFeature.activity?.rangeUnits ?? "self",
-                  override: false,
-                  special: fullFeature.activity?.rangeValue ?? ""
-                },
-
-                target: {
-                  template: {
-                    contiguous: false,
-                    stationary: false,
-                    units: "ft",
-                    type: ""
-                  },
-                  affects: {
-                    choice: false,
-                    type: fullFeature.activity?.targetType ?? ""
-                  },
-                  override: false,
-                  prompt: true
-                },
-
-                uses: {
-                  spent: 0,
-                  recovery: [],
-                  max: ""
-                },
-
-                visibility: {
-                  level: {
-                    min: null,
-                    max: null
-                  },
-                  requireAttunement: false,
-                  requireIdentification: false,
-                  requireMagic: false,
-                  identifier: ""
-                },
-
-                roll: {
-                  prompt: false,
-                  visible: false,
-                  name: "",
-                  formula: ""
-                },
-
-                useConditionText: "",
-                useConditionReason: "",
-                effectConditionText: "",
-
-                macroData: {
-                  name: "",
-                  command: ""
-                },
-
-                ignoreTraits: {
-                  idi: false,
-                  idr: false,
-                  idv: false,
-                  ida: false,
-                  idm: false
-                },
-
-                name: ""
-              }
+              [activityId]: buildActivity()
             }
           : {},
 
@@ -911,7 +1080,7 @@ function App() {
           windows={workspaceWindows}
           onSidebarTabChange={setActiveSidebarTab}
           onCreateCharacter={openNewCharacterWindow}
-          onCreateFeature={openNewFeatureWindow}
+          onCreateFeature={openItemTypePickerWindow}
           onOpenCharacter={openCharacterWindow}
           onOpenFeature={openFeatureWindow}
           onCloseWindow={closeWorkspaceWindow}
@@ -937,7 +1106,7 @@ function App() {
           </div>
 
           <div className="create-grid">
-            <button className="create-card" onClick={openNewFeatureWindow}>
+            <button className="create-card" onClick={openItemTypePickerWindow}>
               <span>✨</span>
               <h3>Feature / Item</h3>
               <p>Create a feat, class feature, species feature, or item-like ability.</p>

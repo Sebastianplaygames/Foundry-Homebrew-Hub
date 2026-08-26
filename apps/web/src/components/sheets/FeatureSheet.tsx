@@ -13,12 +13,55 @@ type FoundryFeatureType =
   | "supernatural"
   | "vehicle";
 
+type ActivityType = "utility" | "damage" | "heal" | "save";
+
 type FeatureSheetProps = {
   initialFeature?: HomebrewFeature;
   onSave: (feature: HomebrewFeature) => Promise<void> | void;
   onExport: (feature: HomebrewFeature) => void;
   onClose?: () => void;
   windowed?: boolean;
+};
+
+type ExtendedFeature = HomebrewFeature & {
+  img?: string;
+  chatDescription?: string;
+  foundryType?: FoundryFeatureType;
+  requiredLevel?: number | null;
+  requiredItems?: string;
+  repeatable?: boolean;
+  properties?: {
+    magical?: boolean;
+    passiveTrait?: boolean;
+  };
+  uses?: {
+    spent?: number;
+    max?: string;
+    recovery?: "none" | "sr" | "lr" | "srOrLr";
+  };
+  activity?: {
+    type?: ActivityType;
+    activation?: "none" | "action" | "bonus" | "reaction" | "special";
+    rangeUnits?: "self" | "touch" | "ft" | "spec";
+    rangeValue?: string;
+    targetType?:
+      | "self"
+      | "creature"
+      | "ally"
+      | "enemy"
+      | "object"
+      | "space"
+      | "area"
+      | "special"
+      | "";
+    targetValue?: string;
+    damageFormula?: string;
+    damageType?: string;
+    healingFormula?: string;
+    saveAbility?: "str" | "dex" | "con" | "int" | "wis" | "cha" | "";
+    saveDc?: string;
+    saveEffect?: string;
+  };
 };
 
 const featureTypeOptions: { value: FoundryFeatureType; label: string }[] = [
@@ -30,6 +73,22 @@ const featureTypeOptions: { value: FoundryFeatureType; label: string }[] = [
   { value: "feat", label: "Feat" },
   { value: "supernatural", label: "Supernatural Gift" },
   { value: "vehicle", label: "Vehicle Feature" }
+];
+
+const damageTypes = [
+  "acid",
+  "bludgeoning",
+  "cold",
+  "fire",
+  "force",
+  "lightning",
+  "necrotic",
+  "piercing",
+  "poison",
+  "psychic",
+  "radiant",
+  "slashing",
+  "thunder"
 ];
 
 function legacyTypeFromFoundryType(foundryType: FoundryFeatureType): HomebrewFeature["type"] {
@@ -50,58 +109,72 @@ export function FeatureSheet({
   onClose,
   windowed = false
 }: FeatureSheetProps) {
-  const [featureId] = useState(() => initialFeature?.id ?? crypto.randomUUID());
+  const feature = initialFeature as ExtendedFeature | undefined;
+
+  const [featureId] = useState(() => feature?.id ?? crypto.randomUUID());
   const [featureTab, setFeatureTab] = useState<FeatureTab>("description");
 
-  const [name, setName] = useState(initialFeature?.name ?? "New Feature");
-  const [img, setImg] = useState(
-    initialFeature?.img ?? "icons/svg/item-bag.svg"
-  );
+  const [name, setName] = useState(feature?.name ?? "New Feature");
+  const [img, setImg] = useState(feature?.img ?? "icons/svg/item-bag.svg");
 
-  const [description, setDescription] = useState(initialFeature?.description ?? "");
-  const [chatDescription, setChatDescription] = useState(
-    initialFeature?.chatDescription ?? ""
-  );
+  const [description, setDescription] = useState(feature?.description ?? "");
+  const [chatDescription, setChatDescription] = useState(feature?.chatDescription ?? "");
 
   const [foundryType, setFoundryType] = useState<FoundryFeatureType>(
-    (initialFeature?.foundryType as FoundryFeatureType | undefined) ?? "feat"
+    feature?.foundryType ?? "feat"
   );
 
   const [requiredLevel, setRequiredLevel] = useState(
-    initialFeature?.requiredLevel?.toString() ?? ""
+    feature?.requiredLevel?.toString() ?? ""
   );
 
-  const [requiredItems, setRequiredItems] = useState(initialFeature?.requiredItems ?? "");
-  const [repeatable, setRepeatable] = useState(initialFeature?.repeatable ?? false);
+  const [requiredItems, setRequiredItems] = useState(feature?.requiredItems ?? "");
+  const [repeatable, setRepeatable] = useState(feature?.repeatable ?? false);
 
-  const [magical, setMagical] = useState(initialFeature?.properties?.magical ?? false);
+  const [magical, setMagical] = useState(feature?.properties?.magical ?? false);
   const [passiveTrait, setPassiveTrait] = useState(
-    initialFeature?.properties?.passiveTrait ?? false
+    feature?.properties?.passiveTrait ?? false
   );
 
-  const [usesSpent, setUsesSpent] = useState(
-    initialFeature?.uses?.spent?.toString() ?? "0"
-  );
-  const [usesMax, setUsesMax] = useState(initialFeature?.uses?.max ?? "");
+  const [usesSpent, setUsesSpent] = useState(feature?.uses?.spent?.toString() ?? "0");
+  const [usesMax, setUsesMax] = useState(feature?.uses?.max ?? "");
   const [recovery, setRecovery] = useState<"none" | "sr" | "lr" | "srOrLr">(
-    initialFeature?.uses?.recovery ?? "none"
+    feature?.uses?.recovery ?? "none"
+  );
+
+  const [activityType, setActivityType] = useState<ActivityType>(
+    feature?.activity?.type ?? "utility"
   );
 
   const [activation, setActivation] = useState<
     "none" | "action" | "bonus" | "reaction" | "special"
-  >(initialFeature?.activity?.activation ?? "none");
+  >(feature?.activity?.activation ?? "none");
 
   const [rangeUnits, setRangeUnits] = useState<"self" | "touch" | "ft" | "spec">(
-    initialFeature?.activity?.rangeUnits ?? "self"
+    feature?.activity?.rangeUnits ?? "self"
   );
 
-  const [rangeValue, setRangeValue] = useState(initialFeature?.activity?.rangeValue ?? "");
+  const [rangeValue, setRangeValue] = useState(feature?.activity?.rangeValue ?? "");
 
   const [targetType, setTargetType] = useState<
     "self" | "creature" | "ally" | "enemy" | "object" | "space" | "area" | "special" | ""
-  >(initialFeature?.activity?.targetType ?? "self");
+  >(feature?.activity?.targetType ?? "self");
 
-  const [targetValue, setTargetValue] = useState(initialFeature?.activity?.targetValue ?? "");
+  const [targetValue, setTargetValue] = useState(feature?.activity?.targetValue ?? "");
+
+  const [damageFormula, setDamageFormula] = useState(feature?.activity?.damageFormula ?? "");
+  const [damageType, setDamageType] = useState(feature?.activity?.damageType ?? "fire");
+
+  const [healingFormula, setHealingFormula] = useState(
+    feature?.activity?.healingFormula ?? ""
+  );
+
+  const [saveAbility, setSaveAbility] = useState<
+    "str" | "dex" | "con" | "int" | "wis" | "cha" | ""
+  >(feature?.activity?.saveAbility ?? "");
+
+  const [saveDc, setSaveDc] = useState(feature?.activity?.saveDc ?? "");
+  const [saveEffect, setSaveEffect] = useState(feature?.activity?.saveEffect ?? "");
 
   function buildFeature(): HomebrewFeature {
     const numericRequiredLevel = requiredLevel.trim() ? Number(requiredLevel) : null;
@@ -132,13 +205,20 @@ export function FeatureSheet({
       },
 
       activity: {
+        type: activityType,
         activation,
         rangeUnits,
         rangeValue,
         targetType,
-        targetValue
+        targetValue,
+        damageFormula,
+        damageType,
+        healingFormula,
+        saveAbility,
+        saveDc,
+        saveEffect
       }
-    };
+    } as HomebrewFeature;
   }
 
   async function handleSave() {
@@ -156,7 +236,13 @@ export function FeatureSheet({
   }
 
   return (
-    <section className={windowed ? "foundry-feature-sheet foundry-feature-sheet--window" : "foundry-feature-sheet"}>
+    <section
+      className={
+        windowed
+          ? "foundry-feature-sheet foundry-feature-sheet--window"
+          : "foundry-feature-sheet"
+      }
+    >
       <header className="feature-sheet-header">
         {onClose && (
           <button className="sheet-back-button" onClick={onClose}>
@@ -336,6 +422,19 @@ export function FeatureSheet({
             <h2>Activity</h2>
 
             <label>
+              Activity Type
+              <select
+                value={activityType}
+                onChange={(event) => setActivityType(event.target.value as ActivityType)}
+              >
+                <option value="utility">Utility</option>
+                <option value="damage">Damage</option>
+                <option value="heal">Healing</option>
+                <option value="save">Save</option>
+              </select>
+            </label>
+
+            <label>
               Activation
               <select
                 value={activation}
@@ -397,6 +496,82 @@ export function FeatureSheet({
                 placeholder="1"
               />
             </label>
+
+            {activityType === "damage" && (
+              <div className="activity-extra-grid">
+                <label>
+                  Damage Formula
+                  <input
+                    value={damageFormula}
+                    onChange={(event) => setDamageFormula(event.target.value)}
+                    placeholder="2d6"
+                  />
+                </label>
+
+                <label>
+                  Damage Type
+                  <select
+                    value={damageType}
+                    onChange={(event) => setDamageType(event.target.value)}
+                  >
+                    {damageTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {activityType === "heal" && (
+              <label>
+                Healing Formula
+                <input
+                  value={healingFormula}
+                  onChange={(event) => setHealingFormula(event.target.value)}
+                  placeholder="1d8 + @mod"
+                />
+              </label>
+            )}
+
+            {activityType === "save" && (
+              <div className="activity-extra-grid">
+                <label>
+                  Save Ability
+                  <select
+                    value={saveAbility}
+                    onChange={(event) => setSaveAbility(event.target.value as typeof saveAbility)}
+                  >
+                    <option value="">None</option>
+                    <option value="str">Strength</option>
+                    <option value="dex">Dexterity</option>
+                    <option value="con">Constitution</option>
+                    <option value="int">Intelligence</option>
+                    <option value="wis">Wisdom</option>
+                    <option value="cha">Charisma</option>
+                  </select>
+                </label>
+
+                <label>
+                  Save DC
+                  <input
+                    value={saveDc}
+                    onChange={(event) => setSaveDc(event.target.value)}
+                    placeholder="16 or @attributes.spelldc"
+                  />
+                </label>
+
+                <label className="activity-wide">
+                  Failed Save Effect
+                  <input
+                    value={saveEffect}
+                    onChange={(event) => setSaveEffect(event.target.value)}
+                    placeholder="Blinded until the end of its next turn"
+                  />
+                </label>
+              </div>
+            )}
           </section>
         )}
 
