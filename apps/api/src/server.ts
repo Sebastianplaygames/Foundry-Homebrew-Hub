@@ -1,9 +1,12 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import {
-  HomebrewFeatureSchema, HomebrewCharacterSchema,
+  HomebrewFeatureSchema,
+  HomebrewCharacterSchema,
+  HomebrewClassSchema,
   type HomebrewFeature,
-  type HomebrewCharacter
+  type HomebrewCharacter,
+  type HomebrewClass
 } from "@foundry-homebrew-hub/shared";
 
 const app = Fastify({
@@ -18,10 +21,15 @@ await app.register(cors, {
 
 const features = new Map<string, HomebrewFeature>();
 const characters = new Map<string, HomebrewCharacter>();
+const classes = new Map<string, HomebrewClass>();
 
 app.get("/health", async () => {
   return { status: "ok" };
 });
+
+/* ----------------------------------------- */
+/* Features                                  */
+/* ----------------------------------------- */
 
 app.get("/features", async () => {
   return Array.from(features.values());
@@ -55,9 +63,7 @@ app.put<{ Params: { id: string } }>("/features/:id", async (request, reply) => {
   }
 
   const body =
-    typeof request.body === "object" && request.body !== null
-      ? request.body
-      : {};
+    typeof request.body === "object" && request.body !== null ? request.body : {};
 
   const result = HomebrewFeatureSchema.safeParse({
     ...body,
@@ -93,6 +99,82 @@ app.delete<{ Params: { id: string } }>("/features/:id", async (request, reply) =
   };
 });
 
+/* ----------------------------------------- */
+/* Classes                                   */
+/* ----------------------------------------- */
+
+app.get("/classes", async () => {
+  return Array.from(classes.values());
+});
+
+app.post("/classes", async (request, reply) => {
+  const result = HomebrewClassSchema.safeParse(request.body);
+
+  if (!result.success) {
+    return reply.status(400).send({
+      error: "Invalid class",
+      issues: result.error.issues
+    });
+  }
+
+  classes.set(result.data.id, result.data);
+
+  return {
+    message: "Class saved",
+    class: result.data
+  };
+});
+
+app.put<{ Params: { id: string } }>("/classes/:id", async (request, reply) => {
+  const existingClass = classes.get(request.params.id);
+
+  if (!existingClass) {
+    return reply.status(404).send({
+      error: "Class not found"
+    });
+  }
+
+  const body =
+    typeof request.body === "object" && request.body !== null ? request.body : {};
+
+  const result = HomebrewClassSchema.safeParse({
+    ...body,
+    id: request.params.id
+  });
+
+  if (!result.success) {
+    return reply.status(400).send({
+      error: "Invalid class",
+      issues: result.error.issues
+    });
+  }
+
+  classes.set(request.params.id, result.data);
+
+  return {
+    message: "Class updated",
+    class: result.data
+  };
+});
+
+app.delete<{ Params: { id: string } }>("/classes/:id", async (request, reply) => {
+  const wasDeleted = classes.delete(request.params.id);
+
+  if (!wasDeleted) {
+    return reply.status(404).send({
+      error: "Class not found"
+    });
+  }
+
+  return {
+    message: "Class deleted"
+  };
+});
+
+/* ----------------------------------------- */
+/* Characters                                */
+/* ----------------------------------------- */
+
 app.get("/characters", async () => {
   return Array.from(characters.values());
 });
@@ -125,9 +207,7 @@ app.put<{ Params: { id: string } }>("/characters/:id", async (request, reply) =>
   }
 
   const body =
-    typeof request.body === "object" && request.body !== null
-      ? request.body
-      : {};
+    typeof request.body === "object" && request.body !== null ? request.body : {};
 
   const result = HomebrewCharacterSchema.safeParse({
     ...body,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import type { HomebrewCharacter, HomebrewFeature } from "@foundry-homebrew-hub/shared";
+import type {HomebrewCharacter, HomebrewClass, HomebrewFeature} from "@foundry-homebrew-hub/shared";
 import { CharacterSheet } from "./components/sheets/CharacterSheet";
+import { ClassSheet } from "./components/sheets/ClassSheet";
 import { FeatureSheet } from "./components/sheets/FeatureSheet";
 import { FoundryWorkspace } from "./components/workspace/FoundryWorkspace";
 import { ItemTypePicker } from "./components/workspace/ItemTypePicker";
@@ -89,12 +90,19 @@ function App() {
   const [nextWindowZIndex, setNextWindowZIndex] = useState(10);
 
   const [features, setFeatures] = useState<HomebrewFeature[]>([]);
+  const [classes, setClasses] = useState<HomebrewClass[]>([]);
   const [characters, setCharacters] = useState<HomebrewCharacter[]>([]);
 
   async function loadFeatures() {
     const response = await fetch("http://localhost:3000/features");
     const data = await response.json();
     setFeatures(data);
+  }
+
+  async function loadClasses() {
+    const response = await fetch("http://localhost:3000/classes");
+    const data = await response.json();
+    setClasses(data);
   }
 
   async function loadCharacters() {
@@ -127,6 +135,33 @@ function App() {
     }
 
     await loadFeatures();
+    setActiveSidebarTab("items");
+  }
+
+  async function saveClassDocument(homebrewClass: HomebrewClass) {
+    const alreadyExists = classes.some((entry) => entry.id === homebrewClass.id);
+
+    const response = await fetch(
+      alreadyExists
+        ? `http://localhost:3000/classes/${homebrewClass.id}`
+        : "http://localhost:3000/classes",
+      {
+        method: alreadyExists ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(homebrewClass)
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Class save failed:", response.status, errorText);
+      alert(`Failed to save class: ${response.status}`);
+      return;
+    }
+
+    await loadClasses();
     setActiveSidebarTab("items");
   }
 
@@ -395,6 +430,20 @@ function App() {
           initialFeature={feature}
           onSave={saveFeatureDocument}
           onExport={exportFeatureItem}
+          onClose={() => closeWorkspaceWindow(window.id)}
+          windowed
+        />
+      );
+    }
+
+    if (window.type === "class") {
+      const homebrewClass = classes.find((entry) => entry.id === window.documentId);
+
+      return (
+        <ClassSheet
+          initialClass={homebrewClass}
+          onSave={saveClassDocument}
+          onExport={exportClassItem}
           onClose={() => closeWorkspaceWindow(window.id)}
           windowed
         />
@@ -737,6 +786,329 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
+  function parseJsonForExport(text: string, fallback: unknown, label: string) {
+    const trimmed = text.trim();
+
+    if (!trimmed) {
+      return fallback;
+    }
+
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      alert(`${label} is not valid JSON.`);
+      return null;
+    }
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+
+  function scaleValueForExport(scaleType: string, value: string) {
+    if (scaleType === "number") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : value;
+    }
+
+    return value;
+  }
+
+  function classRestrictionForExport(classRestriction: string) {
+    if (classRestriction === "primary") {
+      return { classRestriction: "primary" };
+    }
+
+    if (classRestriction === "secondary") {
+      return { classRestriction: "secondary" };
+    }
+
+    return {};
+  }
+
+  function spellAdvancementDefaults() {
+    return {
+      ability: [],
+      uses: {
+        max: "",
+        per: "",
+        requireSlot: false
+      },
+      prepared: 0
+    };
+  }
+
+  function buildClassAdvancement(homebrewClass: HomebrewClass) {
+    const advancement: Record<string, unknown> = {};
+
+    for (const entry of homebrewClass.advancements ?? []) {
+      if (entry.type === "hitPoints") {
+        advancement[entry.id] = {
+          _id: entry.id,
+          type: "HitPoints",
+          configuration: {},
+          value: {},
+          title: entry.title || "Hit Points",
+          icon: entry.icon || "systems/dnd5e/icons/svg/hit-points.svg",
+          flags: {},
+          hint: entry.hint ?? ""
+        };
+      }
+
+      if (entry.type === "abilityScoreImprovement") {
+        advancement[entry.id] = {
+          _id: entry.id,
+          type: "AbilityScoreImprovement",
+          configuration: {
+            points: entry.points,
+            fixed: entry.fixed,
+            cap: entry.pointCap,
+            locked: entry.locked,
+            recommendation: null
+          },
+          value: {},
+          level: entry.level,
+          title: entry.title || "Ability Score Improvement",
+          flags: {},
+          hint: entry.hint ?? "",
+          ...classRestrictionForExport(entry.classRestriction)
+        };
+      }
+
+      if (entry.type === "itemChoice") {
+        advancement[entry.id] = {
+          _id: entry.id,
+          type: "ItemChoice",
+          configuration: {
+            choices: Object.fromEntries(
+              entry.choices
+                .filter((choice) => choice.count > 0)
+                .map((choice) => [
+                  String(choice.level),
+                  {
+                    count: choice.count,
+                    replacement: choice.replacement
+                  }
+                ])
+            ),
+            allowDrops: entry.allowDrops,
+            type: entry.itemType,
+            pool: entry.pool,
+            spell: spellAdvancementDefaults(),
+            restriction: {
+              type: entry.restrictionType,
+              subtype: entry.restrictionSubtype,
+              level: entry.restrictionLevel,
+              list: []
+            }
+          },
+          value: {
+            added: {},
+            replaced: {}
+          },
+          level: entry.level,
+          title: entry.title || "Choose Items",
+          flags: {},
+          hint: entry.hint ?? "",
+          ...classRestrictionForExport(entry.classRestriction)
+        };
+      }
+
+      if (entry.type === "itemGrant") {
+        advancement[entry.id] = {
+          _id: entry.id,
+          type: "ItemGrant",
+          configuration: {
+            items: entry.items,
+            optional: entry.optional,
+            spell: spellAdvancementDefaults()
+          },
+          value: {},
+          level: entry.level,
+          title: entry.title || "Features",
+          flags: {},
+          hint: entry.hint ?? "",
+          ...classRestrictionForExport(entry.classRestriction)
+        };
+      }
+
+      if (entry.type === "scaleValue") {
+        advancement[entry.id] = {
+          _id: entry.id,
+          type: "ScaleValue",
+          configuration: {
+            identifier: entry.identifier,
+            type: entry.scaleType,
+            distance: {
+              units: entry.distanceUnits
+            },
+            scale: Object.fromEntries(
+              entry.scale
+                .filter((scaleEntry) => scaleEntry.value !== "")
+                .map((scaleEntry) => [
+                  String(scaleEntry.level),
+                  {
+                    value: scaleValueForExport(entry.scaleType, scaleEntry.value)
+                  }
+                ])
+            )
+          },
+          value: {},
+          level: entry.level,
+          title: entry.title || "Scale Value",
+          flags: {},
+          hint: entry.hint ?? "",
+          ...classRestrictionForExport(entry.classRestriction)
+        };
+      }
+
+      if (entry.type === "subclass") {
+        advancement[entry.id] = {
+          _id: entry.id,
+          type: "Subclass",
+          configuration: {},
+          value: {
+            document: null,
+            uuid: null
+          },
+          level: entry.level,
+          title: entry.title || "Subclass",
+          flags: {},
+          hint: entry.hint ?? "",
+          ...classRestrictionForExport(entry.classRestriction)
+        };
+      }
+
+      if (entry.type === "trait") {
+        advancement[entry.id] = {
+          _id: entry.id,
+          type: "Trait",
+          configuration: {
+            mode: entry.mode,
+            allowReplacements: entry.allowReplacements,
+            grants: entry.grants,
+            choices: entry.choices.map((choice) => ({
+              count: 1,
+              pool: [choice]
+            }))
+          },
+          value: {
+            chosen: []
+          },
+          level: entry.level,
+          title: entry.title || "Traits",
+          flags: {},
+          hint: entry.hint ?? "",
+          ...classRestrictionForExport(entry.classRestriction)
+        };
+      }
+    }
+
+    return advancement;
+  }
+
+  function exportClassItem(homebrewClass: HomebrewClass) {
+    const rawAdvancement = parseJsonForExport(
+      homebrewClass.advancementJson,
+      {},
+      "Advancement JSON"
+    );
+
+    if (rawAdvancement === null) {
+      return;
+    }
+
+    if (!isRecord(rawAdvancement)) {
+      alert("Advancement JSON must be an object, like {}.");
+      return;
+    }
+
+    const generatedAdvancement = buildClassAdvancement(homebrewClass);
+    const advancement = {
+      ...rawAdvancement,
+      ...generatedAdvancement
+    };
+
+    const startingEquipment = parseJsonForExport(
+      homebrewClass.startingEquipment,
+      [],
+      "Starting Equipment JSON"
+    );
+
+    if (startingEquipment === null) {
+      return;
+    }
+
+    const item = {
+      name: homebrewClass.name,
+      type: "class",
+      img: homebrewClass.img || "icons/svg/book.svg",
+
+      system: {
+        description: {
+          value: textToFoundryHtml(homebrewClass.description),
+          chat: ""
+        },
+
+        source: {
+          custom: "",
+          book: "",
+          page: "",
+          license: "",
+          rules: "2024",
+          revision: 1
+        },
+
+        identifier: homebrewClass.identifier || slugify(homebrewClass.name),
+        levels: homebrewClass.levels,
+
+        advancement,
+
+        spellcasting: {
+          progression: homebrewClass.spellcasting.progression,
+          ability: homebrewClass.spellcasting.ability,
+          preparation: {}
+        },
+
+        startingEquipment,
+        wealth: homebrewClass.wealth,
+
+        primaryAbility: {
+          value: homebrewClass.primaryAbility,
+          all: homebrewClass.primaryAbility.length === 0
+        },
+
+        hd: {
+          denomination: homebrewClass.hitDie,
+          spent: 0,
+          additional: ""
+        },
+
+        properties: []
+      },
+
+      effects: [],
+      flags: {},
+
+      ownership: {
+        default: 0
+      }
+    };
+
+    const file = new Blob([JSON.stringify(item, null, 2)], {
+      type: "application/json"
+    });
+
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `${slugify(homebrewClass.name)}-class.json`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
+
   function exportCharacterActor(character: ExportableCharacter) {
     const proficiencies: Required<NonNullable<ExportableCharacter["proficiencies"]>> = {
       saves: character.proficiencies?.saves ?? {},
@@ -1042,6 +1414,7 @@ function App() {
 
   useEffect(() => {
     loadFeatures();
+    loadClasses();
     loadCharacters();
   }, []);
 

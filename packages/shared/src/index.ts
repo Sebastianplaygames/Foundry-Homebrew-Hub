@@ -30,13 +30,24 @@ export const FoundryFeatSystemTypeSchema = z.enum([
 
 export type FoundryFeatSystemType = z.infer<typeof FoundryFeatSystemTypeSchema>;
 
-export const FoundryVisibilitySchema = z.enum([
-  "private",
-  "public",
-  "unlisted"
-]);
+export const FoundryVisibilitySchema = z.enum(["private", "public", "unlisted"]);
 
 export type FoundryVisibility = z.infer<typeof FoundryVisibilitySchema>;
+
+export const AbilityKeySchema = z.enum(["str", "dex", "con", "int", "wis", "cha"]);
+
+export type AbilityKey = z.infer<typeof AbilityKeySchema>;
+
+export const AbilityScoresSchema = z.object({
+  str: z.number().min(1).max(30),
+  dex: z.number().min(1).max(30),
+  con: z.number().min(1).max(30),
+  int: z.number().min(1).max(30),
+  wis: z.number().min(1).max(30),
+  cha: z.number().min(1).max(30)
+});
+
+export type AbilityScores = z.infer<typeof AbilityScoresSchema>;
 
 export const FoundryItemSchema = z
   .object({
@@ -151,20 +162,68 @@ export const HomebrewFeatureSchema = z.object({
 
 export type HomebrewFeature = z.infer<typeof HomebrewFeatureSchema>;
 
-export const AbilityKeySchema = z.enum(["str", "dex", "con", "int", "wis", "cha"]);
+export const ClassHitDieSchema = z.enum(["d6", "d8", "d10", "d12"]);
 
-export type AbilityKey = z.infer<typeof AbilityKeySchema>;
+export type ClassHitDie = z.infer<typeof ClassHitDieSchema>;
 
-export const AbilityScoresSchema = z.object({
-  str: z.number().min(1).max(30),
-  dex: z.number().min(1).max(30),
-  con: z.number().min(1).max(30),
-  int: z.number().min(1).max(30),
-  wis: z.number().min(1).max(30),
-  cha: z.number().min(1).max(30)
+export const ClassSpellcastingProgressionSchema = z.enum([
+  "none",
+  "full",
+  "half",
+  "third",
+  "pact",
+  "artificer"
+]);
+
+export type ClassSpellcastingProgression = z.infer<
+  typeof ClassSpellcastingProgressionSchema
+>;
+
+export const HomebrewClassSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  description: z.string().default(""),
+
+  img: z.string().default("icons/svg/book.svg"),
+  identifier: z.string().default(""),
+
+  levels: z.number().min(1).max(20).default(1),
+  hitDie: ClassHitDieSchema.default("d8"),
+
+  primaryAbility: z.array(AbilityKeySchema).default([]),
+  savingThrows: z.array(AbilityKeySchema).default([]),
+
+  armorProficiencies: z.array(z.string()).default([]),
+  weaponProficiencies: z.array(z.string()).default([]),
+  toolProficiencies: z.array(z.string()).default([]),
+
+  skillChoices: z.array(z.string()).default([]),
+  skillChoiceCount: z.number().min(0).max(18).default(2),
+
+  spellcasting: z
+    .object({
+      progression: ClassSpellcastingProgressionSchema.default("none"),
+      ability: z.union([AbilityKeySchema, z.literal("")]).default("")
+    })
+    .default({
+      progression: "none",
+      ability: ""
+    }),
+
+  startingEquipment: z.string().default(""),
+  wealth: z.string().default(""),
+
+  /**
+   * Raw Foundry advancement JSON for now.
+   * Later we can replace this with a proper visual advancement editor.
+   */
+  advancementJson: z.string().default("{}"),
+
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional()
 });
 
-export type AbilityScores = z.infer<typeof AbilityScoresSchema>;
+export type HomebrewClass = z.infer<typeof HomebrewClassSchema>;
 
 export const HomebrewCharacterSchema = z.object({
   id: z.string(),
